@@ -27,14 +27,15 @@ android {
         versionName = flutter.versionName
     }
 
-    dependencies {
-        implementation("com.sun.mail:android-mail:1.6.7")
-        implementation("com.sun.mail:android-activation:1.6.7")
-    }
-
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{NOTICE.md,LICENSE.md}"
         }
     }
 }
@@ -42,6 +43,7 @@ android {
 dependencies {
     implementation("com.sun.mail:android-mail:1.6.7")
     implementation("com.sun.mail:android-activation:1.6.7")
+
 }
 
 flutter {

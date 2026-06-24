@@ -4,7 +4,6 @@ import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.result.contract.ActivityResultContracts
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -14,32 +13,11 @@ class MainActivity : FlutterActivity() {
     private companion object {
         private const val CHANNEL = "com.parentalmonitor/screenshot"
         private const val KEY_PENDING_CONFIG = "pending_service_config"
+        private const val MEDIA_PROJECTION_REQUEST_CODE = 1001
     }
 
     private var methodChannelResult: MethodChannel.Result? = null
     private var pendingServiceConfig: ServiceConfig? = null
-
-    private val mediaProjectionLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val config = pendingServiceConfig
-        pendingServiceConfig = null
-
-        if (result.resultCode == RESULT_OK && result.data != null) {
-            if (config == null) {
-                methodChannelResult?.error("NO_CONFIG", "Missing service configuration", null)
-                methodChannelResult = null
-                return@registerForActivityResult
-            }
-
-            val success = startScreenshotService(result.resultCode, result.data!!, config)
-            methodChannelResult?.success(success)
-            methodChannelResult = null
-        } else {
-            methodChannelResult?.error("PERMISSION_DENIED", "Screen capture permission was denied", null)
-            methodChannelResult = null
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,6 +32,30 @@ class MainActivity : FlutterActivity() {
         pendingServiceConfig?.let {
             outState.putSerializable(KEY_PENDING_CONFIG, it)
         }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == MEDIA_PROJECTION_REQUEST_CODE) {
+            val config = pendingServiceConfig
+            pendingServiceConfig = null
+
+            if (resultCode == RESULT_OK && data != null) {
+                if (config == null) {
+                    methodChannelResult?.error("NO_CONFIG", "Missing service configuration", null)
+                    methodChannelResult = null
+                    return
+                }
+
+                val success = startScreenshotService(resultCode, data, config)
+                methodChannelResult?.success(success)
+                methodChannelResult = null
+            } else {
+                methodChannelResult?.error("PERMISSION_DENIED", "Screen capture permission was denied", null)
+                methodChannelResult = null
+            }
+        }
+        super.onActivityResult(requestCode, resultCode, data)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -115,7 +117,8 @@ class MainActivity : FlutterActivity() {
     private fun requestMediaProjectionPermission() {
         val projectionManager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         val intent = projectionManager.createScreenCaptureIntent()
-        mediaProjectionLauncher.launch(intent)
+        @Suppress("DEPRECATION")
+        startActivityForResult(intent, MEDIA_PROJECTION_REQUEST_CODE)
     }
 
     private fun isServiceRunning(): Boolean {

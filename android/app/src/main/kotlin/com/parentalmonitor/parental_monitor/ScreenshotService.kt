@@ -19,18 +19,18 @@ import android.os.Looper
 import android.util.DisplayMetrics
 import android.view.WindowManager
 import android.widget.Toast
-import jakarta.activation.DataHandler
-import jakarta.activation.FileDataSource
-import jakarta.mail.Authenticator
-import jakarta.mail.Message
-import jakarta.mail.Multipart
-import jakarta.mail.PasswordAuthentication
-import jakarta.mail.Session
-import jakarta.mail.Transport
-import jakarta.mail.internet.InternetAddress
-import jakarta.mail.internet.MimeBodyPart
-import jakarta.mail.internet.MimeMessage
-import jakarta.mail.internet.MimeMultipart
+import javax.activation.DataHandler
+import javax.activation.FileDataSource
+import javax.mail.Authenticator
+import javax.mail.Message
+import javax.mail.Multipart
+import javax.mail.PasswordAuthentication
+import javax.mail.Session
+import javax.mail.Transport
+import javax.mail.internet.InternetAddress
+import javax.mail.internet.MimeBodyPart
+import javax.mail.internet.MimeMessage
+import javax.mail.internet.MimeMultipart
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
@@ -214,10 +214,13 @@ class ScreenshotService : Service() {
             } catch (e: Exception) {
                 // Log error but continue; will retry on next interval
             }
-            backgroundHandler?.postDelayed(captureRunnable, intervalMs)
+            // Use the captured Runnable for rescheduling
+            val self = captureRunnable ?: return@Runnable
+            backgroundHandler?.postDelayed(self, intervalMs)
         }
         // First capture after a short delay to allow the virtual display to initialize
-        backgroundHandler?.postDelayed(captureRunnable, 2000)
+        val runnable = captureRunnable ?: return
+        backgroundHandler?.postDelayed(runnable, 2000)
     }
 
     private fun captureScreenshot(): String? {
@@ -306,9 +309,8 @@ class ScreenshotService : Service() {
                     subject = "Parental Monitor - Screenshot (${System.currentTimeMillis()})"
 
                     // Email body
-                    val textPart = MimeBodyPart().apply {
-                        text = "Screenshot captured at ${java.util.Date().toString()}.\n\nThis is an automated message from Parental Monitor."
-                    }
+                    val textPart = MimeBodyPart()
+                    textPart.setText("Screenshot captured at ${java.util.Date().toString()}.\n\nThis is an automated message from Parental Monitor.")
 
                     // Attachment
                     val filePart = MimeBodyPart().apply {
@@ -318,10 +320,9 @@ class ScreenshotService : Service() {
                     }
 
                     // Combine parts
-                    val multipart = MimeMultipart().apply {
-                        addBodyPart(textPart)
-                        addBodyPart(filePart)
-                    }
+                    val multipart = MimeMultipart()
+                    multipart.addBodyPart(textPart)
+                    multipart.addBodyPart(filePart)
                     setContent(multipart)
                 }
 
